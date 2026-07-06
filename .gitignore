@@ -1,0 +1,16 @@
+__pycache__/
+*.pyc
+
+# Vendored reveal.js is downloaded on first build.
+vendor/
+
+# Generated deck artifacts.
+**/deck.html
+**/deck.pdf
+**/slides_png/
+
+# Generated demo (recreate with: python make_demo.py).
+demo/
+
+# Local screenshots / scratch.
+*_shot*.png

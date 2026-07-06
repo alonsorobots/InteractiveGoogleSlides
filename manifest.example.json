@@ -1,0 +1,34 @@
+{
+  "title": "My interactive deck",
+  "width": 1280,
+  "height": 720,
+  "reveal_theme": "black",
+  "images": "slides",
+  "static_root": "viewers",
+  "embeds": [
+    {
+      "slide": 3,
+      "serve": "static",
+      "path": "my_viewer.html",
+      "rect": { "x": 8, "y": 14, "w": 60, "h": 72 }
+    },
+    {
+      "slide": 6,
+      "serve": "proxy",
+      "path": "index.html",
+      "backend": {
+        "cmd": ["python", "-m", "http.server", "8000"],
+        "port": 8000,
+        "cwd": "my_app"
+      },
+      "rect": { "x": 5, "y": 10, "w": 90, "h": 80 }
+    },
+    {
+      "slide": 8,
+      "serve": "proxy",
+      "path": "export/embed.html?bbox=-0.135,51.503,-0.108,51.517&layer=mapnik",
+      "backend": { "base": "https://www.openstreetmap.org" },
+      "rect": { "x": 5, "y": 10, "w": 90, "h": 80 }
+    }
+  ]
+}
