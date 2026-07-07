@@ -75,6 +75,32 @@ python sync_slides.py --url "<slides url>" --manifest manifest.json --build --wa
 Set your manifest's `"pdf": "deck.pdf"` so `build_deck.py` splits the synced PDF
 into slide backgrounds (needs `pip install pymupdf`).
 
+### Optional: keep GIFs and videos *live* (Slides API import)
+
+The PDF/PNG export flattens everything — an animated GIF becomes one frame, a
+video becomes its poster still. If you connect to the **Google Slides API**
+instead, you can rip the media *out* and keep it live: each slide is still
+rendered to a flat background, but every image/GIF and every YouTube/Drive video
+is re-attached as a live overlay at its exact on-slide position, using the same
+interaction-contract shim as any other embed.
+
+```bash
+# Friendliest: one tab does sign-in + file picker + a live progress bar, then the
+# finished interactive deck opens right there (no separate build/launch step).
+python slides_import.py --studio --out mydeck --client client_secret.json
+
+# Or the plain picker (build + launch yourself):
+python slides_import.py --picker --out mydeck --build
+python launch.py --manifest mydeck/manifest.json
+```
+
+The `--picker` flow uses the non-sensitive `drive.file` scope, so there's no
+scary permission warning and no Google verification needed - you just sign in
+and pick your deck. Other auth models (service account for headless use, or
+broader-scope OAuth) are also supported. Auth is one-time; later runs refresh
+silently. See **[IMPORT.md](IMPORT.md)** for setup and how it maps Slides
+elements to overlays.
+
 ## Manifest reference
 
 ```jsonc
@@ -131,6 +157,9 @@ flowchart LR
 | `serve.py` | Shim-injecting static server / reverse proxy. |
 | `launch.py` | Starts the servers a manifest needs and opens the deck. |
 | `sync_slides.py` | Pulls a link-viewable Google Slides deck as PDF (optional watch). |
+| `slides_import.py` | Imports a deck via the Slides API, keeping GIFs/videos live ([IMPORT.md](IMPORT.md)). |
+| `slides_auth_picker.py` | No-warning `drive.file` + Google Picker auth used by `slides_import.py`. |
+| `slides_studio.py` | `--studio` server: sign-in + Picker + live progress bar, then serves the finished deck in the same tab. |
 | `deckcommon.py` | Shared manifest parsing + port assignment. |
 | `make_demo.py` | Generates the self-contained demo. |
 | `manifest.example.json` | Copy to `manifest.json` and edit. |
@@ -139,6 +168,8 @@ flowchart LR
 
 - Python 3.10+ (core tooling is standard-library only).
 - `pymupdf` only if you split an exported PDF (`pip install -r requirements.txt`).
+- `google-api-python-client`, `google-auth`, `google-auth-oauthlib` only for the
+  live-media Slides API import (`slides_import.py`; see [IMPORT.md](IMPORT.md)).
 - A modern browser. reveal.js is vendored locally into `vendor/` on first build,
   so the deck framework has no CDN dependency (pass `--cdn` to opt out).
 

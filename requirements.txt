@@ -1,5 +1,13 @@
 # Core tooling uses only the Python standard library (3.10+).
-# The only optional dependency is for splitting an exported PDF into slide
-# images (build_deck.py with a manifest "pdf" field). If you export per-slide
-# PNGs instead, you need nothing here.
+
+# --- Optional: PDF flow ---
+# Needed only to split an exported PDF into slide images (build_deck.py with a
+# manifest "pdf" field). If you export per-slide PNGs instead, you need nothing.
 pymupdf>=1.24
+
+# --- Optional: live-media import flow (slides_import.py) ---
+# Needed only to pull a deck straight from the Google Slides API and keep GIFs /
+# videos live (instead of baking them flat). Uncomment to install.
+# google-api-python-client>=2.130
+# google-auth>=2.30
+# google-auth-oauthlib>=1.2

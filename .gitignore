@@ -4,13 +4,35 @@ __pycache__/
 # Vendored reveal.js is downloaded on first build.
 vendor/
 
+# Credentials & secrets (slides_import.py) - NEVER commit these.
+service_account.json
+client_secret*.json
+credentials*.json
+# Any OAuth token file (token.json, token_picker.json, token_*.json, ...).
+token.json
+**/token.json
+**/token*.json
+api_key.txt
+picker_api_key.txt
+**/picker_state.json
+**/studio_state.json
+
+# Per-deck instance output: imported slides, extracted media, generated deck,
+# tokens/state, and any user/research content (e.g. presentation title, embeds).
+# Generated per user by slides_import.py / slides_studio.py - not tool code.
+gesture_deck/
+
 # Generated deck artifacts.
 **/deck.html
 **/deck.pdf
 **/slides_png/
+# Imported live-media assets + generated overlay wrappers (slides_import.py).
+**/media/
+**/_media/
 
 # Generated demo (recreate with: python make_demo.py).
 demo/
 
 # Local screenshots / scratch.
 *_shot*.png
+_diag/
