@@ -412,7 +412,22 @@ def _video_wrapper(media_rel: str, transparent: bool = False) -> str:
     )
 
 
-_FFMPEG = shutil.which("ffmpeg")
+def _resolve_ffmpeg() -> str | None:
+    """Locate an ffmpeg binary: a system install first, then the one bundled by
+    the `imageio-ffmpeg` package (a default dependency), so a plain `pip install`
+    gives you a working transcoder without a separate system package."""
+    found = shutil.which("ffmpeg")
+    if found:
+        return found
+    try:
+        import imageio_ffmpeg
+
+        return imageio_ffmpeg.get_ffmpeg_exe()
+    except Exception:
+        return None
+
+
+_FFMPEG = _resolve_ffmpeg()
 
 
 def _gif_has_alpha(path: Path) -> bool:

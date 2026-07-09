@@ -64,7 +64,7 @@ _SCALER_HTML = """<!doctype html><html><head><meta charset="utf-8"><style>
 
 def _scaler_url(embed_url: str, design: dict, transparent: bool, relative: bool) -> str:
     """URL of the scaler page wrapping embed_url at the given design viewport."""
-    base = "/_scale.html" if relative else f"http://localhost:{STATIC_PORT}/_scale.html"
+    base = "/_scale.html" if relative else f"http://127.0.0.1:{STATIC_PORT}/_scale.html"
     params = {
         "src": embed_url,
         "dw": int(design.get("w", 1280)),
@@ -117,8 +117,17 @@ def parse_website_slides(conf_path: Path) -> list[dict]:
         if len(parts) < 2 or not parts[1]:
             print(f"[build] {name}:{lineno}: need at least 'frame | url'; skipping")
             continue
+        # Frame field: 'N' inserts a NEW slide after frame N; '=N' REPLACES slide
+        # N (its original background + any overlays are dropped, the embed takes
+        # its place). '=0' is meaningless (no slide 0) and is treated as insert.
+        raw_frame = parts[0]
+        mode = "after"
+        fstr = raw_frame
+        if raw_frame.startswith("="):
+            mode = "replace"
+            fstr = raw_frame[1:].strip()
         try:
-            after = int(float(parts[0]))
+            after = int(float(fstr))
         except ValueError:
             print(f"[build] {name}:{lineno}: bad frame {parts[0]!r}; skipping")
             continue
@@ -142,9 +151,34 @@ def parse_website_slides(conf_path: Path) -> list[dict]:
             else:
                 print(f"[build] {name}:{lineno}: bad designWxH {parts[5]!r}; using 1600x900")
 
-        slides.append({"after": after, "url": parts[1], "scale": scale,
-                       "dx": dx, "dy": dy, "dw": dw, "dh": dh})
+        # Optional 7th field: the slide background behind the embed. A '#hex' or
+        # CSS color name -> solid color; anything containing 'gradient' -> a CSS
+        # gradient; otherwise a deck-relative image path. Empty -> black.
+        bg = parts[6] if len(parts) > 6 and parts[6] else None
+
+        slides.append({"mode": mode, "after": after, "url": parts[1], "scale": scale,
+                       "dx": dx, "dy": dy, "dw": dw, "dh": dh, "bg": bg})
     return slides
+
+
+def _bg_attrs(bg: str | None) -> str:
+    """reveal.js section background attribute(s) for a website slide.
+
+    - None / empty            -> solid black
+    - starts with '#'         -> data-background-color
+    - contains 'gradient'     -> data-background-gradient (e.g. a linear/radial CSS gradient)
+    - otherwise               -> data-background-image (deck-relative path), cover-fit
+    """
+    if not bg:
+        return 'data-background-color="#000"'
+    b = bg.strip()
+    if b.startswith("#"):
+        return f'data-background-color="{html.escape(b, quote=True)}"'
+    if "gradient" in b.lower():
+        return f'data-background-gradient="{html.escape(b, quote=True)}"'
+    return (f'data-background-color="#000" '
+            f'data-background-image="{html.escape(b, quote=True)}" '
+            f'data-background-size="cover"')
 
 
 def _website_rect(scale: float, dx: float, dy: float,
@@ -168,24 +202,29 @@ def _website_rect(scale: float, dx: float, dy: float,
 
 
 def _website_section(w: dict, deck_w: int, deck_h: int, relative: bool) -> str:
-    """A standalone black slide holding one uniformly-scaled website embed."""
+    """A standalone slide holding one uniformly-scaled website embed, on a
+    configurable background (solid color, CSS gradient, or a deck-relative image;
+    black by default)."""
     if _is_url(w["url"]):
         embed_url = w["url"]
     else:
         path = w["url"].lstrip("/")
-        embed_url = ("/" + path) if relative else f"http://localhost:{STATIC_PORT}/{path}"
+        embed_url = ("/" + path) if relative else f"http://127.0.0.1:{STATIC_PORT}/{path}"
     design = {"w": w["dw"], "h": w["dh"], "fit": "contain"}
     scaler = _scaler_url(embed_url, design, transparent=False, relative=relative)
     rect = _website_rect(w["scale"], w["dx"], w["dy"], w["dw"], w["dh"], deck_w, deck_h)
+    # Transparent iframe backing so the slide background shows in the margin
+    # around a scaled-down embed (scale < 1). The embed itself paints its own
+    # background over its box.
     style = (
         f"position:absolute;left:{rect['x']}%;top:{rect['y']}%;"
-        f"width:{rect['w']}%;height:{rect['h']}%;border:0;background:#000;"
+        f"width:{rect['w']}%;height:{rect['h']}%;border:0;background:transparent;"
     )
     iframe = (
         f'\n        <iframe class="embed" data-src="{html.escape(scaler, quote=True)}" '
         f'style="{style}" allow="autoplay; fullscreen"></iframe>'
     )
-    return f'      <section data-background-color="#000">{iframe}\n      </section>'
+    return f'      <section {_bg_attrs(w.get("bg"))}>{iframe}\n      </section>'
 
 
 REVEAL_VER = "6.0.1"
@@ -256,10 +295,14 @@ def build_sections(images: list[Path], embeds: list[dict], out_dir: Path,
     for e in embeds:
         by_slide.setdefault(int(e["slide"]), []).append(e)
 
-    # Website slides are inserted AFTER a given frame; group them by that frame.
+    # Website slides come in two flavours, grouped by their target frame:
+    #   "after"   -> insert a NEW slide right after that frame
+    #   "replace" -> take the place of that slide (its image + overlays dropped)
     ws_after: dict[int, list[dict]] = {}
+    ws_replace: dict[int, list[dict]] = {}
     for w in (website_slides or []):
-        ws_after.setdefault(int(w["after"]), []).append(w)
+        bucket = ws_replace if w.get("mode") == "replace" else ws_after
+        bucket.setdefault(int(w["after"]), []).append(w)
 
     sections = []
 
@@ -269,6 +312,13 @@ def build_sections(images: list[Path], embeds: list[dict], out_dir: Path,
 
     emit_websites(0)  # allow inserting a website slide before slide 1
     for idx, img in enumerate(images, start=1):
+        # Replaced slide: emit the embed(s) in its place and drop the original
+        # image + its overlays entirely, keeping every other slide's position.
+        if idx in ws_replace:
+            for w in ws_replace[idx]:
+                sections.append(_website_section(w, deck_w, deck_h, relative))
+            emit_websites(idx)
+            continue
         rel = os.path.relpath(img, out_dir).replace("\\", "/")
         overlays = ""
         for e in by_slide.get(idx, []):
@@ -468,7 +518,8 @@ def build(
         for e in embeds:
             print(f"        slide {e['slide']}: {e['serve']:6s} {e['url']}")
         for w in website_slides:
-            print(f"        after {w['after']}: website  {w['url']} "
+            verb = "replace" if w.get("mode") == "replace" else "after  "
+            print(f"        {verb} {w['after']}: website  {w['url']} "
                   f"(scale {w['scale']}, off {w['dx']},{w['dy']}, {w['dw']}x{w['dh']})")
     return out
 

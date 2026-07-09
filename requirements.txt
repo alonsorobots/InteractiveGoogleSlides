@@ -1,5 +1,12 @@
 # Core tooling uses only the Python standard library (3.10+).
 
+# --- ffmpeg (bundled, default) ---
+# Provides a static ffmpeg binary cross-platform, used by slides_import.py to
+# transcode animated GIFs into small, GPU-decoded looping videos. A system
+# ffmpeg on PATH is preferred when present; this is the always-available
+# fallback so a plain `pip install` yields a working transcoder.
+imageio-ffmpeg>=0.4.9
+
 # --- Optional: PDF flow ---
 # Needed only to split an exported PDF into slide images (build_deck.py with a
 # manifest "pdf" field). If you export per-slide PNGs instead, you need nothing.

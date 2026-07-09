@@ -85,20 +85,18 @@ _PROGRESS_PAGE = """<!DOCTYPE html>
 
 
 # Injected into the served deck so a browser refresh re-imports the latest slides
-# instead of just reloading the cached deck - but only if the deck actually
-# changed on Google's side. On any refresh we first ask /check (a cheap Drive
-# modifiedTime lookup); we only go to the progress bar + re-import when it reports
-# a change, otherwise we stay on the deck already showing. Two triggers:
-#   1) keydown: intercept F5 / Ctrl-R up front (no flash) and gate on /check.
-#   2) Navigation Timing: if this load was itself a reload, gate on /check too.
-# A rebuild lands back on /deck.html via a normal navigation, so it never loops.
+# only when the deck actually changed on Google's side. F5 / Ctrl-R do a normal
+# browser reload (no keydown interception - the reveal.js re-init is fast enough
+# that the "flash" isn't worth breaking users' expectations of the refresh key).
+# On any load that was itself a reload, we ask /check (a cheap Drive modifiedTime
+# lookup) and only navigate to the progress bar when it reports a change; a
+# rebuild lands back on /deck.html via a normal navigation, so it never loops.
 _DECK_REFRESH_JS = """
 <script>
 (function () {
   function gate() {
     fetch('/check').then(function (r) { return r.json(); }).then(function (j) {
       if (j.changed) { window.location.href = '/progress?refresh=1'; }
-      // unchanged: nothing to do, stay on the current deck
     }).catch(function () { window.location.href = '/progress?refresh=1'; });
   }
   try {
@@ -107,11 +105,6 @@ _DECK_REFRESH_JS = """
                             ? 'reload' : 'navigate');
     if (t === 'reload') { gate(); }
   } catch (err) {}
-  window.addEventListener('keydown', function (ev) {
-    var reload = ev.key === 'F5'
-      || ((ev.ctrlKey || ev.metaKey) && (ev.key === 'r' || ev.key === 'R'));
-    if (reload) { ev.preventDefault(); ev.stopPropagation(); gate(); }
-  }, true);
 })();
 </script>
 """

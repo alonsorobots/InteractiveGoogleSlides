@@ -170,8 +170,30 @@ flowchart LR
 - `pymupdf` only if you split an exported PDF (`pip install -r requirements.txt`).
 - `google-api-python-client`, `google-auth`, `google-auth-oauthlib` only for the
   live-media Slides API import (`slides_import.py`; see [IMPORT.md](IMPORT.md)).
+- `ffmpeg`, installed by default via the `imageio-ffmpeg` package (in
+  `requirements.txt`). Used by `slides_import.py` to transcode animated GIFs into
+  small, GPU-decoded looping videos (H.264 MP4, or VP9 WebM with alpha). A system
+  `ffmpeg` on `PATH` is preferred when present; the bundled one is the fallback.
+  If neither is available, GIFs are served as-is - correct, just heavier.
 - A modern browser. reveal.js is vendored locally into `vendor/` on first build,
   so the deck framework has no CDN dependency (pass `--cdn` to opt out).
+
+### Installing the Python deps
+
+The Google-import deps are **commented out** in `requirements.txt` because most
+users only need the core (PDF/PNG) flow. If you're using `slides_import.py`,
+uncomment those lines before installing.
+
+On modern macOS (Homebrew Python) and most Linux distros, the system Python is
+"externally managed" (PEP 668) and refuses a plain `pip install`. Use a venv:
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate            # Windows: .venv\Scripts\activate
+pip install -r requirements.txt      # after uncommenting the google-* lines for the import flow
+```
+
+Then run every command with the venv active (or prefix with `.venv/bin/python`).
 
 ## Notes and limitations
 

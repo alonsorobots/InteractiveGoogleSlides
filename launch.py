@@ -58,7 +58,7 @@ def _cleanup():
 
 
 def _wait_for_port(port: int, timeout: float = 30.0, path: str = "/") -> bool:
-    url = f"http://localhost:{port}{path}"
+    url = f"http://127.0.0.1:{port}{path}"
     deadline = time.time() + timeout
     while time.time() < deadline:
         try:

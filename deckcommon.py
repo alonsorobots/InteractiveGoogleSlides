@@ -86,7 +86,7 @@ def backend_base(embed: dict) -> str | None:
     if b.get("base"):
         return b["base"].rstrip("/")
     if b.get("port"):
-        return f"http://localhost:{b['port']}"
+        return f"http://127.0.0.1:{b['port']}"
     raise ValueError(f"proxy embed for slide {embed.get('slide')} needs backend.base or backend.port")
 
 
@@ -102,11 +102,11 @@ def resolve_embeds(manifest: dict) -> list[dict]:
 
         if mode == "static":
             e["serve_port"] = STATIC_PORT
-            e["url"] = f"http://localhost:{STATIC_PORT}/{path}"
+            e["url"] = f"http://127.0.0.1:{STATIC_PORT}/{path}"
         elif mode == "proxy":
             e["serve_port"] = next_proxy_port
             next_proxy_port += 1
-            e["url"] = f"http://localhost:{e['serve_port']}/{path}"
+            e["url"] = f"http://127.0.0.1:{e['serve_port']}/{path}"
         else:
             raise ValueError(f"embed for slide {e.get('slide')}: unknown serve mode {mode!r}")
 
